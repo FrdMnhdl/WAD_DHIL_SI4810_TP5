@@ -1,6 +1,6 @@
 <?php
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\ItemsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BooksController;
 use App\Http\Controllers\CategoriesController;
@@ -11,6 +11,7 @@ use App\Http\Controllers\CategoriesController;
  */
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
+
 
 /**
  * =========2===========
