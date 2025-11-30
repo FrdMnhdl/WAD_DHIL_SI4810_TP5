@@ -17,12 +17,31 @@ class AuthController extends Controller
          * ==========1===========
          * Validasi data registrasi yang masuk
          */
+         $validator = validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|unique:users|max:255',
+            'password' => 'required|string|min:8'
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'validation gagal',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
 
         /**
          * =========2===========
          * Buat user baru dan generate token API, atur masa berlaku token 1 jam
          */
+         $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+
+        ]);
+
+        $token = $user->createToken('auth_token')->plainTextToken;
 
 
 
@@ -30,6 +49,13 @@ class AuthController extends Controller
          * =========3===========
          * Kembalikan response sukses dengan data $user dan $token
          */
+         return response()->json([
+            'message' => 'registrasi berhasil',
+            'data' => [
+                'user' => $user,
+                'token' => $token
+            ]
+        ], 201);
 
     }
 
