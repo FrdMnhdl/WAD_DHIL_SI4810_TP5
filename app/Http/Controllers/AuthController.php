@@ -10,6 +10,10 @@ use App\Models\User;
 
 class AuthController extends Controller
 {
+        /**
+         * ==========1===========
+         * Validasi data registrasi yang masuk
+         */
 
     public function register(Request $request)
     {
@@ -17,20 +21,40 @@ class AuthController extends Controller
          * ==========1===========
          * Validasi data registrasi yang masuk
          */
-
+        $validator = Validator::make($request->all(),[ 
+            'name'=> 'required|string|max:255', 
+            'email'=> 'required|string|email|unique:users|max:255', 
+            'password' => 'required|string|min:8',
+        ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+            ], 422);
+}
 
         /**
          * =========2===========
          * Buat user baru dan generate token API, atur masa berlaku token 1 jam
          */
+         $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
 
+        $token = $user->createToken('api-token', ['*'], now()->addHour())->plainTextToken;
 
 
         /**
          * =========3===========
          * Kembalikan response sukses dengan data $user dan $token
          */
-
+        return response()->json([
+            'message' => 'Registration successful',
+            'user'    => $user,
+            'token'   => $token,     
+        ], 201);
     }
 
 
@@ -40,18 +64,42 @@ class AuthController extends Controller
          * =========4===========
          * Validasi data login yang masuk
          */
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Please check your request',
+                'errors' => $validator->errors()
+            ], 422);
+        } 
         /**
          * =========5===========
          * Generate token API untuk user yang terautentikasi
          * Atur token agar expired dalam 1 jam
          */
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            return response()->json([
+                'message' => 'Invalid login credentials'
+            ], 401);
+        }
 
+        $user = Auth::user();
+        $token = $user->createToken('api-token', ['*'], now()->addHour())->plainTextToken;
+         
         /**
          * =========6===========
          * Kembalikan response sukses dengan data $user dan $token
          */
-
+        return response()->json([
+            'message' => 'Login successful',
+            'data' => [
+            'user' => $user,
+            'token' => $token
+        ]
+        ], 200);
     }
 
     public function logout(Request $request)
@@ -60,12 +108,14 @@ class AuthController extends Controller
          * =========7===========
          * Invalidate token yang digunakan untuk autentikasi request saat ini
          */
-
+        $request->user()->currentAccessToken()->delete();
 
         /**
          * =========8===========
          * Kembalikan response sukses
          */
-
+        return response()->json([
+            'message' => 'Successfully logged out'
+        ], 200);
     }
 }
