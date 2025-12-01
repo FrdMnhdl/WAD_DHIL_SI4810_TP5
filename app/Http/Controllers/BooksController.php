@@ -16,6 +16,8 @@ class BooksController extends Controller
      */
     public function index()
     {
+        $books = Book::all();
+        return BookResource::collection($books);
     }
 
     /**
@@ -24,7 +26,21 @@ class BooksController extends Controller
      */
     public function store(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'author_id' => 'required|exists:authors,id',
+            'isbn' => 'required|string|unique:books,isbn|max:20',
+            'published_year' => 'nullable|integer|digits:4',
+            'description' => 'nullable|string',
+        ]);
 
+        if ($validator->fails())
+        {
+            return response()->json($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $book = Book::create($validator->validated());
+        return new BookResource($book, Response::HTTP_CREATED);
     }
 
     /**
@@ -33,7 +49,11 @@ class BooksController extends Controller
      */
     public function show(string $id)
     {
-
+        $book = Book::find($id);
+        if (!$book) {
+            return response()->json(['message' => 'Buku tidak ditemukan'], Response::HTTP_NOT_FOUND);
+        }
+        return new BookResource($book);
     }
 
     /**
@@ -42,8 +62,27 @@ class BooksController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        $book = Book::find($id);
 
+        if (!$book){
+            return response()->json(['message' => 'Buku tidak ditemukan'], Response::HTTP_NOT_FOUND);
+        }
+         $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|string|max:255',
+            'author_id' => 'sometimes|exists:authors,id',
+            'isbn' => 'sometimes|string|unique:books,isbn,' . $book->id . '|max:20', // Unique check, excluding current book
+            'published_year' => 'nullable|integer|digits:4',
+            'description' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        $book->update($validator->validated());
+
+        return new BookResource($book);
     }
+    
 
     /**
      * =========5===========
@@ -51,6 +90,13 @@ class BooksController extends Controller
      */
     public function destroy(string $id)
     {
+        $book = Book::find($id);
+
+        if (!$book) {
+            return response()->json(['message' => 'Buku tidak ditemukan'], Response::HTTP_NOT_FOUND);
+        }
+        $book->delete();
+        return response()->json(['message' => 'Buku berhasil dihapus'], Response::HTTP_NO_CONTENT);
     }
 
     /**
@@ -59,6 +105,23 @@ class BooksController extends Controller
      */
     public function borrowReturn(string $id)
     {
+        $book = Book::find($id);
 
+        if (!$book) {
+            return response()->json(['message' => 'Buku tidak ditemukan'], Response::HTTP_NOT_FOUND);
+        }
+
+        
+        $newStatus = !$book->is_available;
+        $book->is_available = $newStatus;
+        $book->save();
+
+        $message = $newStatus ? 'Buku berhasil dikembalikan dan tersedia.' : 'Buku berhasil dipinjam dan tidak tersedia.';
+
+        return response()->json([
+            'message' => $message,
+            'book' => new BookResource($book)
+        ]);
     }
+
 }
